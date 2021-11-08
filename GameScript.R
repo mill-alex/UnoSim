@@ -157,3 +157,67 @@ initializePlayer <- function(strategy) {
   class(newPlayer) <- "Player"
   newPlayer
 }
+
+#Game class
+createGame <- function(playerlist) {
+  tc <- initializeCard()
+  while(tc$isSpecial) {
+    tc <- initializeCard()
+  }
+  
+  newGame <- list(players = playerlist, topcard = tc, nextPlayer = 0, winner = NULL, turn = 0, isReverseOrder = FALSE)
+  class(newGame) <- "Game"
+  newGame
+}
+
+nextPlayer <- function(game) {
+  expected = game$nextPlayer
+  if(game$isReverseOrder) {
+    expected = expected - 1
+  }
+  else {
+    expected = expected + 1
+  }
+  
+  if(expected < 1) {
+    expected = length(game$players)
+  }
+  else if(expected > length(game$players)) {
+    expected = 0
+  }
+  expected
+}
+
+simulateGame <- function(playerfunctionlist) {
+  playerlist = list()
+  for(f in playerfunctionlist) {
+    playerlist = append(playerlist, initializePlayer(f))
+  }
+  game <- createGame(playerlist)
+  
+  while(is.null(game$winner)) {
+    game$turn = game$turn + 1
+    game$nextPlayer = nextPlayer(game)
+    result <-  game$players[[game$nextPlayer * 2 - 1]](game$players[[game$nextPlayer * 2]], game$topcard) #Calls playCard()
+    
+    if(result[[1]] == 0) {
+      #Player draws from pile
+      game$players[[game$nextPlayer]]$hand = append(game$players[[game$nextPlayer]]$hand, initializeCard())
+    }
+    else{
+      if(length(result[[2]]) == 0) {
+        game$winner = playerlist[[nextplayer]]
+      }
+      game$topcard = result[[2]]
+      game$players[[game$nextPlayer * 2]]$hand = result[[3]]
+      
+      #TODO Check For Wild Card & do results
+      #TODO Check for skip, +2, reverse & do results
+    }
+    
+  }
+  
+  cat(list(game$winner$playCard, game$turn)) #add any data here
+  #  return(list(game$winner$playCard, game$turn)) #add any data here
+}
+
