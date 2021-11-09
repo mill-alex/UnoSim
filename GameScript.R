@@ -1,6 +1,8 @@
 ###Welcome to the source file for the UNO simulation! :)
 # 
-# Current order/index of code:
+# Notes:
+#
+# OUTDATED order/index of code:
 #   Color Enum
 #   Card class/initialization
 #   Hand initialization
@@ -11,8 +13,29 @@
 
 ColorsEnum <- list(BLUE = 1, RED = 2, YELLOW = 3, GREEN = 4)
 
+#Create Deck
+BASE_DECK <- vector("list", length = 108)
+for(i in 1:8) {
+  for(j in 1:9) {
+    BASE_DECK[[12 * (i - 1) + j]] <- list(isSpecial = FALSE, number = j, color = ColorsEnum[[i %% 4 + 1]])
+  }
+  for(j in 10:12) {
+    BASE_DECK[[12 * (i - 1) + j]] <- list(isSpecial = TRUE, number = j, color = ColorsEnum[[i %% 4 + 1]])
+  }
+}
+for(i in 1:4) {
+  BASE_DECK[[96 + i]] <- list(isSpecial = TRUE, number = -1, color = "NA") #WILD
+  BASE_DECK[[100 + i]] <- list(isSpecial = TRUE, number = -4, color = "NA") #WILD 4
+  BASE_DECK[[104 + i]] <- list(isSpecial = FALSE, number = 0, color = ColorsEnum[[i %% 4 + 1]]) #ZEROs
+}
+
+#Get a copy of the base deck
+newDeck <- function() {
+  BASE_DECK
+}
+
 #Card class has elements: isSpecial, number, color, specialType
-initializeCard <- function() {
+generateCard <- function() {
   newCard <- list(isSpecial = FALSE, number = "NA", color = "NA", specialType = "NA")
   class(newCard) <- "Card"
   
@@ -26,8 +49,8 @@ initializeCard <- function() {
 }
 
 #length 7 list of Cards
-makehand <- function() {
-  list(initializeCard(), initializeCard(), initializeCard(), initializeCard(), initializeCard(), initializeCard(), initializeCard())
+generatehand <- function() {
+  list(generateCard(), generateCard(), generateCard(), generateCard(), generateCard(), generateCard(), generateCard())
 }
 
 #STRATEGIES
@@ -151,21 +174,53 @@ number_wild_color <- function(hand, topcard) {
   return(list(0, "draw"))
 }
 
+gethand <- function(shuffled_deck) {
+  list()
+}
+
+drawcard <- function(deck) {
+  card <- deck[[length(deck)]]
+  deck = deck[[-length(deck)]]
+  list(card, deck)
+}
+
 #Player class
 initializePlayer <- function(strategy) {
-  newPlayer <- list(playCard = strategy, hand = makehand())
+  newPlayer <- list(playCard = strategy, hand = list())
   class(newPlayer) <- "Player"
   newPlayer
 }
 
 #Game class
 createGame <- function(playerlist) {
-  tc <- initializeCard()
-  while(tc$isSpecial) {
-    tc <- initializeCard()
+  # tc <- generateCard()
+  # while(tc$isSpecial) {
+  #   tc <- generateCard()
+  # }
+  
+  newGame <- list(players = playerlist, topcard = "notyet", nextPlayer = 0, winner = NULL, turn = 0, isReverseOrder = FALSE
+                  ,deck = sample(newDeck()), pile = list())
+  
+  for(i in length(newGame$players)) {
+    if(i %% 2 == 0) {
+      for(j in length(newGame$deck):(length(newGame$deck) - 7)) {
+        newGame$players[[i]] <- append(newGame$players[[i]], newGame$deck[[j]])
+        newGame$deck = newGame$deck[[-j]]
+      }
+    }
   }
   
-  newGame <- list(players = playerlist, topcard = tc, nextPlayer = 0, winner = NULL, turn = 0, isReverseOrder = FALSE)
+  tc <- newGame$deck[[length(newGame$deck)]]
+  while(tc$isSpecial) {
+    index = sample(1:(length(newGame$deck) - 5), 1)
+    newGame$deck[[length(newGame$deck)]] <- newGame$deck[[index]]
+    newGame$deck[[index]] <- tx
+    tc <- newGame$deck[[length(newGame$deck)]]
+  }
+  newGame$deck = newGame$deck[[-length(newGame$deck)]]
+  newGame$topcard = tc
+  
+  
   class(newGame) <- "Game"
   newGame
 }
@@ -201,13 +256,16 @@ simulateGame <- function(playerfunctionlist, nameoffunctionslist) {
     result <-  game$players[[game$nextPlayer * 2 - 1]](game$players[[game$nextPlayer * 2]], game$topcard) #Calls playCard()
     
     if(result[[1]] == 0) {
-      #Player draws from pile
-      game$players[[game$nextPlayer * 2]] = append(game$players[[game$nextPlayer * 2]], list(initializeCard()))
+      #Player draws from deck
+      carddeck = drawcard(game$deck, game$pile)
+      game$deck = carddeck[[2]]
+      game$players[[game$nextPlayer * 2]] = append(game$players[[game$nextPlayer * 2]], carddeck[[1]])
     }
     else{
       if(length(result[[3]]) == 0) {
         game$winner = playerfunctionlist[[game$nextPlayer]]
       }
+      game$pile = append(game$pile, game$topcard) # TODO CHECK LINE FOR CORRECTNESS
       game$topcard = result[[2]][[1]]
       game$players[[game$nextPlayer * 2]] = result[[3]]
       
