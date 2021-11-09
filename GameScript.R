@@ -180,15 +180,15 @@ nextPlayer <- function(game) {
   }
   
   if(expected < 1) {
-    expected = length(game$players)
+    expected = length(game$players) / 2
   }
-  else if(expected > length(game$players)) {
-    expected = 0
+  else if(expected > length(game$players) / 2) {
+    expected = 1
   }
   expected
 }
 
-simulateGame <- function(playerfunctionlist) {
+simulateGame <- function(playerfunctionlist, nameoffunctionslist) {
   playerlist = list()
   for(f in playerfunctionlist) {
     playerlist = append(playerlist, initializePlayer(f))
@@ -202,22 +202,24 @@ simulateGame <- function(playerfunctionlist) {
     
     if(result[[1]] == 0) {
       #Player draws from pile
-      game$players[[game$nextPlayer]]$hand = append(game$players[[game$nextPlayer]]$hand, initializeCard())
+      game$players[[game$nextPlayer * 2]] = append(game$players[[game$nextPlayer * 2]], list(initializeCard()))
     }
     else{
-      if(length(result[[2]]) == 0) {
-        game$winner = playerlist[[nextplayer]]
+      if(length(result[[3]]) == 0) {
+        game$winner = playerfunctionlist[[game$nextPlayer]]
       }
-      game$topcard = result[[2]]
-      game$players[[game$nextPlayer * 2]]$hand = result[[3]]
+      game$topcard = result[[2]][[1]]
+      game$players[[game$nextPlayer * 2]] = result[[3]]
       
       #TODO Check For Wild Card & do results
       #TODO Check for skip, +2, reverse & do results
     }
     
   }
-  
-  cat(list(game$winner$playCard, game$turn)) #add any data here
-  #  return(list(game$winner$playCard, game$turn)) #add any data here
+  cat(nameoffunctionslist[[game$nextPlayer]])
+  cat(game$turn)
+  #  return(nameoffunctionslist[[game$nextPlayer]], game$turn) #add any data here
 }
 
+###   EXAMPLE GAME
+#simulateGame(list(color_number_wild, number_color_wild), list("cnw", "ncw"))
