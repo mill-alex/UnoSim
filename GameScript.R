@@ -10,6 +10,8 @@
 #   The 6 strategies based on the color/number/wild reorderings
 #   The player class/initialization
 
+#CARD NUMBERs: 0:9 is that int, 10 is reverse, 11 is skip, 12 is draw 2, -1 is wild, -4 is wild4
+
 
 ColorsEnum <- list(BLUE = 1, RED = 2, YELLOW = 3, GREEN = 4)
 
@@ -34,24 +36,24 @@ newDeck <- function() {
   BASE_DECK
 }
 
-#Card class has elements: isSpecial, number, color, specialType
-generateCard <- function() {
-  newCard <- list(isSpecial = FALSE, number = "NA", color = "NA", specialType = "NA")
-  class(newCard) <- "Card"
-  
-  #TODO - determine if card should be special
-  if(!newCard$isSpecial) {
-    newCard$number = sample(0:9, 1)
-    newCard$color = sample(ColorsEnum, 1)
-  }
-  
-  newCard
-}
-
-#length 7 list of Cards
-generatehand <- function() {
-  list(generateCard(), generateCard(), generateCard(), generateCard(), generateCard(), generateCard(), generateCard())
-}
+# #Card class has elements: isSpecial, number, color, specialType
+# generateCard <- function() {
+#   newCard <- list(isSpecial = FALSE, number = "NA", color = "NA", specialType = "NA")
+#   class(newCard) <- "Card"
+#   
+#   #TODO - determine if card should be special
+#   if(!newCard$isSpecial) {
+#     newCard$number = sample(0:9, 1)
+#     newCard$color = sample(ColorsEnum, 1)
+#   }
+#   
+#   newCard
+# }
+# 
+# #length 7 list of Cards
+# generatehand <- function() {
+#   list(generateCard(), generateCard(), generateCard(), generateCard(), generateCard(), generateCard(), generateCard())
+# }
 
 #STRATEGIES
 
@@ -67,6 +69,8 @@ color_match <- function(hand, topcard) {
 }
 
 number_match <- function(hand, topcard) {
+  if(topcard$number < 0) { return(list(0)) }
+  
   for(i in 1:length(hand)) {
     if(hand[[i]]$number == topcard$number) {
       card = hand[i]
@@ -83,6 +87,8 @@ has_wild <- function(hand, topcard) {
     if(identical(hand[[i]]$color, "NA")) {
       card = hand[i]
       hand = hand[-i]
+      #card$color = ???
+      card$color = ColorsEnum[[1]]
       return(list(1, card, hand))
     }
   }
@@ -92,13 +98,19 @@ has_wild <- function(hand, topcard) {
 ##Color match, then number match, then wildcard
 color_number_wild <- function(hand, topcard) {
   result <- color_match(hand, topcard)
-  if(result[[1]] == 1) { return(result)}
+  if(result[[1]] == 1) {
+    return(result)
+  }
   
   result <- number_match(hand, topcard)
-  if(result[[1]] == 1) { return(result)}
+  if(result[[1]] == 1) {
+    return(result)
+  }
   
   result <- has_wild(hand, topcard)
-  if(result[[1]] == 1) { return(result)}
+  if(result[[1]] == 1) { 
+    return(result)
+  }
   
   #No playable cards
   return(list(0, "draw"))
@@ -178,48 +190,62 @@ gethand <- function(shuffled_deck) {
   list()
 }
 
-drawcard <- function(deck) {
+drawcard <- function(deck, pile) {
+  if(length(deck) == 0) {
+    if(length(pile) == 0) { stop("Attempt to draw card when pil and deck are empty.")}
+    deck <- sample(pile)
+    pile = list()
+  }
   card <- deck[[length(deck)]]
-  deck = deck[[-length(deck)]]
-  list(card, deck)
+  deck = deck[-length(deck)]
+  list(card, deck, pile)
+}
+
+setGameAfterDrawCard <- function(game) {
+  #Player draws from deck
+  cat(length(game$deck), "\n")
+  carddeck = drawcard(game$deck, game$pile)
+  cat(length(carddeck[[2]]), "\n\n")
+  game$deck = carddeck[[2]]
+  game$pile = carddeck[[3]]
+  game$players[[game$nextPlayer * 2]] = append(game$players[[game$nextPlayer * 2]], list(carddeck[[1]]))
+  game
 }
 
 #Player class
 initializePlayer <- function(strategy) {
-  newPlayer <- list(playCard = strategy, hand = list())
+  newPlayer <- list(playCard = strategy, hand = vector("list", length = 7))
   class(newPlayer) <- "Player"
   newPlayer
 }
 
 #Game class
 createGame <- function(playerlist) {
-  # tc <- generateCard()
-  # while(tc$isSpecial) {
-  #   tc <- generateCard()
-  # }
   
   newGame <- list(players = playerlist, topcard = "notyet", nextPlayer = 0, winner = NULL, turn = 0, isReverseOrder = FALSE
                   ,deck = sample(newDeck()), pile = list())
   
-  for(i in length(newGame$players)) {
+  #set each player's hand
+  for(i in 1:length(newGame$players)) {
     if(i %% 2 == 0) {
-      for(j in length(newGame$deck):(length(newGame$deck) - 7)) {
-        newGame$players[[i]] <- append(newGame$players[[i]], newGame$deck[[j]])
-        newGame$deck = newGame$deck[[-j]]
+      startlen = length(newGame$deck)
+      for(j in startlen:(startlen - 6)) {
+        newGame$players[[i]][[j + 7 - startlen]] <- newGame$deck[[j]]
+        newGame$deck = newGame$deck[-j]
       }
     }
   }
   
+  #SET TOP CARD - pull non-special card from deck
   tc <- newGame$deck[[length(newGame$deck)]]
   while(tc$isSpecial) {
     index = sample(1:(length(newGame$deck) - 5), 1)
     newGame$deck[[length(newGame$deck)]] <- newGame$deck[[index]]
-    newGame$deck[[index]] <- tx
+    newGame$deck[[index]] <- tc
     tc <- newGame$deck[[length(newGame$deck)]]
   }
-  newGame$deck = newGame$deck[[-length(newGame$deck)]]
+  newGame$deck = newGame$deck[-length(newGame$deck)]
   newGame$topcard = tc
-  
   
   class(newGame) <- "Game"
   newGame
@@ -255,28 +281,52 @@ simulateGame <- function(playerfunctionlist, nameoffunctionslist) {
     game$nextPlayer = nextPlayer(game)
     result <-  game$players[[game$nextPlayer * 2 - 1]](game$players[[game$nextPlayer * 2]], game$topcard) #Calls playCard()
     
+#    cat(length(game$pile), "\n")
+#    cat(length(game$players[[game$nextPlayer * 2]]), "\n")
+    
+    #If no card is played
     if(result[[1]] == 0) {
-      #Player draws from deck
-      carddeck = drawcard(game$deck, game$pile)
-      game$deck = carddeck[[2]]
-      game$players[[game$nextPlayer * 2]] = append(game$players[[game$nextPlayer * 2]], carddeck[[1]])
+      game = setGameAfterDrawCard(game)
     }
     else{
       if(length(result[[3]]) == 0) {
         game$winner = playerfunctionlist[[game$nextPlayer]]
       }
-      game$pile = append(game$pile, game$topcard) # TODO CHECK LINE FOR CORRECTNESS
+      if(game$topcard$number < 0) {
+        game$topcard$color = "NA"
+      }
+     
+      game$pile = append(game$pile, list(game$topcard)) # TODO CHECK LINE FOR CORRECTNESS
       game$topcard = result[[2]][[1]]
       game$players[[game$nextPlayer * 2]] = result[[3]]
+      num = game$topcard$number
       
-      #TODO Check For Wild Card & do results
-      #TODO Check for skip, +2, reverse & do results
+      #Reverse
+      if(num == 10) {
+        game$isReverseOrder = ! game$isReverseOrder
+      }
+      #Skip
+      if(num == 11) {
+        game$nextPlayer = nextPlayer(game)
+      }
+      #Draw 2 (also skips)
+      if(num == 12) {
+        game$nextPlayer = nextPlayer(game)
+        game = setGameAfterDrawCard(game)
+        game = setGameAfterDrawCard(game)
+      }
+      #Draw 4 (also skips)
+      if(num == -4) {
+        game$nextPlayer = nextPlayer(game)
+        for(i in 1:4) {
+          game = setGameAfterDrawCard(game)
+        }
+      }
     }
     
   }
-  cat(nameoffunctionslist[[game$nextPlayer]])
-  cat(game$turn)
-  #  return(nameoffunctionslist[[game$nextPlayer]], game$turn) #add any data here
+  cat(game$turn, "\n")
+  return(list(nameoffunctionslist[[game$nextPlayer]], game$turn)) #add any data here
 }
 
 ###   EXAMPLE GAME
