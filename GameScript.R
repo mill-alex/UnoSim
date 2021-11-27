@@ -88,7 +88,7 @@ has_wild <- function(hand, topcard) {
       card = hand[i]
       hand = hand[-i]
       #card$color = ???
-      card$color = ColorsEnum[[1]]
+      card[[1]]$color = ColorsEnum[[1]]
       return(list(1, card, hand))
     }
   }
@@ -331,3 +331,30 @@ simulateGame <- function(playerfunctionlist, nameoffunctionslist) {
 
 ###   EXAMPLE GAME
 #simulateGame(list(color_number_wild, number_color_wild), list("cnw", "ncw"))
+
+results = as.data.frame(matrix(NA, nrow = 66000, ncol = 4))
+colnames(results) = c("P1 Strat", "P2 Strat", "Winner", "Turns")
+
+Total_Strategies = list(color_number_wild(), color_wild_number(), number_color_wild(), number_wild_color(), wild_color_number(), wild_number_color())
+counter = 1
+
+for(i in 1:5){
+  for(i in (i+1):6){
+    for(k in 1:1000){
+      winner_ij = simulateGame(Total_Strategies[[i]], Total_Strategies[[j]])
+      results[counter,] = c(Total_Strategies[[i]], Total_Strategies[[j]], winner_ij)
+      counter = counter + 1
+      winner_ji = simulateGame(Total_Strategies[[j]], Total_Strategies[[i]])
+      results[counter,] = c(Total_Strategies[[j]], Total_Strategies[[i]], winner_ji)
+      counter = counter + 1
+    }
+  }
+}
+
+for(i in 1:6){
+  for(j in 1:1000){
+    winner = simulateGame(Total_Strategies[[i]], Total_Strategies[[i]])
+    results[counter,] = c(Total_Strategies[[i]], Total_Strategies[[i]], winner)
+    counter = counter + 1
+  }
+}
