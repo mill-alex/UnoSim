@@ -1,11 +1,8 @@
 ###Welcome to the source file for the UNO simulation! :)
 # 
-# Notes:
-#
 # OUTDATED order/index of code:
 #   Color Enum
-#   Card class/initialization
-#   Hand initialization
+#   Deck & Card
 #   Find matching color / number / find wild methods
 #   The 6 strategies based on the color/number/wild reorderings
 #   The player class/initialization
@@ -35,25 +32,6 @@ for(i in 1:4) {
 newDeck <- function() {
   BASE_DECK
 }
-
-# #Card class has elements: isSpecial, number, color, specialType
-# generateCard <- function() {
-#   newCard <- list(isSpecial = FALSE, number = "NA", color = "NA", specialType = "NA")
-#   class(newCard) <- "Card"
-#   
-#   #TODO - determine if card should be special
-#   if(!newCard$isSpecial) {
-#     newCard$number = sample(0:9, 1)
-#     newCard$color = sample(ColorsEnum, 1)
-#   }
-#   
-#   newCard
-# }
-# 
-# #length 7 list of Cards
-# generatehand <- function() {
-#   list(generateCard(), generateCard(), generateCard(), generateCard(), generateCard(), generateCard(), generateCard())
-# }
 
 #STRATEGIES
 
@@ -186,13 +164,9 @@ number_wild_color <- function(hand, topcard) {
   return(list(0, "draw"))
 }
 
-gethand <- function(shuffled_deck) {
-  list()
-}
-
 drawcard <- function(deck, pile) {
   if(length(deck) == 0) {
-    if(length(pile) == 0) { stop("Attempt to draw card when pil and deck are empty.")}
+    if(length(pile) == 0) { stop("Attempt to draw card when pile and deck are empty.")}
     deck <- sample(pile)
     pile = list()
   }
@@ -203,9 +177,9 @@ drawcard <- function(deck, pile) {
 
 setGameAfterDrawCard <- function(game) {
   #Player draws from deck
-  cat(length(game$deck), "\n")
+  # cat(length(game$deck), "\n")
   carddeck = drawcard(game$deck, game$pile)
-  cat(length(carddeck[[2]]), "\n\n")
+  # cat(length(carddeck[[2]]), "\n\n")
   game$deck = carddeck[[2]]
   game$pile = carddeck[[3]]
   game$players[[game$nextPlayer * 2]] = append(game$players[[game$nextPlayer * 2]], list(carddeck[[1]]))
@@ -219,7 +193,7 @@ initializePlayer <- function(strategy) {
   newPlayer
 }
 
-#Game class
+#Game class, setup for a game of Uno
 createGame <- function(playerlist) {
   
   newGame <- list(players = playerlist, topcard = "notyet", nextPlayer = 0, winner = NULL, turn = 0, isReverseOrder = FALSE
@@ -251,6 +225,7 @@ createGame <- function(playerlist) {
   newGame
 }
 
+#Identify next player in the game
 nextPlayer <- function(game) {
   expected = game$nextPlayer
   if(game$isReverseOrder) {
@@ -269,6 +244,7 @@ nextPlayer <- function(game) {
   expected
 }
 
+#Run one whole game of Uno
 simulateGame <- function(playerfunctionlist, nameoffunctionslist) {
   playerlist = list()
   for(f in playerfunctionlist) {
@@ -283,7 +259,7 @@ simulateGame <- function(playerfunctionlist, nameoffunctionslist) {
     
 #    cat(length(game$pile), "\n")
 #    cat(length(game$players[[game$nextPlayer * 2]]), "\n")
-    
+
     #If no card is played
     if(result[[1]] == 0) {
       game = setGameAfterDrawCard(game)
@@ -293,13 +269,17 @@ simulateGame <- function(playerfunctionlist, nameoffunctionslist) {
         game$winner = playerfunctionlist[[game$nextPlayer]]
       }
       if(game$topcard$number < 0) {
+        #Reset color of now-unused wild card
         game$topcard$color = "NA"
       }
      
-      game$pile = append(game$pile, list(game$topcard)) # TODO CHECK LINE FOR CORRECTNESS
+      #Set pile, top card, and the player's hand
+      game$pile = append(game$pile, list(game$topcard))
       game$topcard = result[[2]][[1]]
       game$players[[game$nextPlayer * 2]] = result[[3]]
       num = game$topcard$number
+      
+      #Perform any special actions from topcard:
       
       #Reverse
       if(num == 10) {
@@ -325,36 +305,36 @@ simulateGame <- function(playerfunctionlist, nameoffunctionslist) {
     }
     
   }
-  cat(game$turn, "\n")
-  return(list(nameoffunctionslist[[game$nextPlayer]], game$turn)) #add any data here
+
+    return(list(nameoffunctionslist[[game$nextPlayer]], game$turn)) #add any data here
 }
 
-###   EXAMPLE GAME
-#simulateGame(list(color_number_wild, number_color_wild), list("cnw", "ncw"))
+## RUN MANY SIMULATIONS PITTING DIFFERING STRATEGIES
 
 results = as.data.frame(matrix(NA, nrow = 66000, ncol = 4))
 colnames(results) = c("P1 Strat", "P2 Strat", "Winner", "Turns")
 
-Total_Strategies = list(color_number_wild(), color_wild_number(), number_color_wild(), number_wild_color(), wild_color_number(), wild_number_color())
+Total_Strategies = list(color_number_wild, color_wild_number, number_color_wild, number_wild_color, wild_color_number, wild_number_color)
+Strategy_names = list("color_number_wild", "color_wild_number", "number_color_wild", "number_wild_color", "wild_color_number", "wild_number_color")
 counter = 1
 
 for(i in 1:5){
-  for(i in (i+1):6){
-    for(k in 1:1000){
-      winner_ij = simulateGame(Total_Strategies[[i]], Total_Strategies[[j]])
-      results[counter,] = c(Total_Strategies[[i]], Total_Strategies[[j]], winner_ij)
+  for(j in (i+1):6){
+    for(k in 1:100){
+      winner_ij = simulateGame(list(Total_Strategies[[i]], Total_Strategies[[j]]), list(Strategy_names[[i]], Strategy_names[[j]])) 
+      results[counter,] = c(Strategy_names[[i]], Strategy_names[[j]], winner_ij)
       counter = counter + 1
-      winner_ji = simulateGame(Total_Strategies[[j]], Total_Strategies[[i]])
-      results[counter,] = c(Total_Strategies[[j]], Total_Strategies[[i]], winner_ji)
+      winner_ji = simulateGame(list(Total_Strategies[[j]], Total_Strategies[[i]]), list(Strategy_names[[j]], Strategy_names[[i]]))
+      results[counter,] = c(Strategy_names[[j]], Strategy_names[[i]], winner_ji)
       counter = counter + 1
     }
   }
 }
 
-for(i in 1:6){
-  for(j in 1:1000){
-    winner = simulateGame(Total_Strategies[[i]], Total_Strategies[[i]])
-    results[counter,] = c(Total_Strategies[[i]], Total_Strategies[[i]], winner)
-    counter = counter + 1
-  }
-}
+# for(i in 1:6){
+#   for(j in 1:1000){
+#     winner = simulateGame(Total_Strategies[[i]], Total_Strategies[[i]])
+#     results[counter,] = c(Total_Strategies[[i]], Total_Strategies[[i]], winner)
+#     counter = counter + 1
+#   }
+# }
