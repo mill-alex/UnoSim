@@ -317,41 +317,37 @@ simulateGame <- function(playerfunctionlist, nameoffunctionslist) {
     
   }
 
-    return(list(nameoffunctionslist[[game$nextPlayer]], game$turn)) #add any data here
+  return(list(nameoffunctionslist[[game$nextPlayer]], game$turn, game$nextPlayer)) #add any data here
 }
 
 ## RUN MANY SIMULATIONS PITTING DIFFERING STRATEGIES
 
-results = as.data.frame(matrix(NA, nrow = 66000, ncol = 5))
-colnames(results) = c("P1 Strat", "P2 Strat", "Winner", "Turns", "WinnerWentFirst")
+results = as.data.frame(matrix(NA, nrow = 36000, ncol = 5))
+colnames(results) = c("P1 Strat", "P2 Strat", "Winner", "Turns", "Winner's Order (1 = Winner went first)")
 
 Total_Strategies = list(color_number_wild, color_wild_number, number_color_wild, number_wild_color, wild_color_number, wild_number_color)
 Strategy_names = list("color_number_wild", "color_wild_number", "number_color_wild", "number_wild_color", "wild_color_number", "wild_number_color")
 counter = 0
 
-#TODO remove
-tot_turns1 = 0
-
 for(i in 1:5){
   for(j in (i+1):6){
-    for(k in 1:100){
+    for(k in 1:1000){
       counter = counter + 1
       winner_ij = simulateGame(list(Total_Strategies[[i]], Total_Strategies[[j]]), list(Strategy_names[[i]], Strategy_names[[j]])) 
-      results[counter,] = c(Strategy_names[[i]], Strategy_names[[j]], winner_ij, (Strategy_names[[i]] == winner_ij[[1]]))
+      results[counter,] = c(Strategy_names[[i]], Strategy_names[[j]], winner_ij)
       counter = counter + 1
       winner_ji = simulateGame(list(Total_Strategies[[j]], Total_Strategies[[i]]), list(Strategy_names[[j]], Strategy_names[[i]]))
-      results[counter,] = c(Strategy_names[[j]], Strategy_names[[i]], winner_ji, (Strategy_names[[j]] == winner_ji[[1]]))
-      
-      #TODO remove
-      tot_turns1 = tot_turns1 + winner_ij[[2]] + winner_ji[[2]]
+      results[counter,] = c(Strategy_names[[j]], Strategy_names[[i]], winner_ji)
     }
   }
 }
 
-# for(i in 1:6){
-#   for(j in 1:1000){
-#     counter = counter + 1
-#     winner = simulateGame(Total_Strategies[[i]], Total_Strategies[[i]])
-#     results[counter,] = c(Total_Strategies[[i]], Strategy_names[[i]], winner)
-#   }
-#}
+for(i in 1:6){
+  strat_list <- list(Total_Strategies[[i]], Total_Strategies[[i]])
+  name_list <- list(Strategy_names[[i]], Strategy_names[[i]])
+  for(j in 1:1000){
+    counter = counter + 1
+    winner = simulateGame(strat_list, name_list)
+    results[counter,] = c(Strategy_names[[i]], Strategy_names[[i]], winner)
+  }
+}
