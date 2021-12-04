@@ -1,11 +1,14 @@
 ###Welcome to the source file for the UNO simulation! :)
 # 
-# OUTDATED order/index of code:
+# Order/index of code:
 #   Color Enum
-#   Deck & Card
+#   Create Cards and Deck
 #   Find matching color / number / find wild methods
 #   The 6 strategies based on the color/number/wild reorderings
+#   Functions for drawing a card from the deck
 #   The player class/initialization
+#   Game initialization and use
+#   Loop for running many games and collecting data
 
 #CARD NUMBERs: 0:9 is that int, 10 is reverse, 11 is skip, 12 is draw 2, -1 is wild, -4 is wild4
 
@@ -59,14 +62,12 @@ number_match <- function(hand, topcard) {
   return(list(0))
 }
 
-#TODO - CHOOSE COLOR OF WILD
 has_wild <- function(hand, topcard) {
   for(i in 1:length(hand)) {
     if(identical(hand[[i]]$color, "NA")) {
       card = hand[i]
       hand = hand[-i]
-      #card$color = ???
-      card[[1]]$color = ColorsEnum[[1]]
+      card[[1]]$color = ColorsEnum[[sample(1:4, 1)]]
       return(list(1, card, hand))
     }
   }
@@ -177,9 +178,7 @@ drawcard <- function(deck, pile) {
 
 setGameAfterDrawCard <- function(game) {
   #Player draws from deck
-  # cat(length(game$deck), "\n")
   carddeck = drawcard(game$deck, game$pile)
-  # cat(length(carddeck[[2]]), "\n\n")
   game$deck = carddeck[[2]]
   game$pile = carddeck[[3]]
   game$players[[game$nextPlayer * 2]] = append(game$players[[game$nextPlayer * 2]], list(carddeck[[1]]))
@@ -244,6 +243,12 @@ nextPlayer <- function(game) {
   expected
 }
 
+#Declare odds that a player forgets to say Uno
+#This is implemented so that there is a 1/n chance that the player is beaten to saying Uno
+#when they're supposed to, resulting in them drawing 2 cards. For example, if n is 4, there
+#is a 25% chance they will have to draw 2 cards, and a 75% chance they will draw no cards.
+forgot_to_say_uno = 4
+
 #Run one whole game of Uno
 simulateGame <- function(playerfunctionlist, nameoffunctionslist) {
   playerlist = list()
@@ -256,9 +261,6 @@ simulateGame <- function(playerfunctionlist, nameoffunctionslist) {
     game$turn = game$turn + 1
     game$nextPlayer = nextPlayer(game)
     result <-  game$players[[game$nextPlayer * 2 - 1]](game$players[[game$nextPlayer * 2]], game$topcard) #Calls playCard()
-    
-#    cat(length(game$pile), "\n")
-#    cat(length(game$players[[game$nextPlayer * 2]]), "\n")
 
     #If no card is played
     if(result[[1]] == 0) {
@@ -278,6 +280,15 @@ simulateGame <- function(playerfunctionlist, nameoffunctionslist) {
       game$topcard = result[[2]][[1]]
       game$players[[game$nextPlayer * 2]] = result[[3]]
       num = game$topcard$number
+      
+      #Check for UNO!
+      if(length(game$players[[game$nextPlayer * 2]]) == 1) {
+        if(sample(1:forgot_to_say_uno, 1) == forgot_to_say_uno) {
+          #The player with uno didn't say it first & draws 2 cards
+          game = setGameAfterDrawCard(game)
+          game = setGameAfterDrawCard(game)
+        }
+      }
       
       #Perform any special actions from topcard:
       
@@ -311,30 +322,36 @@ simulateGame <- function(playerfunctionlist, nameoffunctionslist) {
 
 ## RUN MANY SIMULATIONS PITTING DIFFERING STRATEGIES
 
-results = as.data.frame(matrix(NA, nrow = 66000, ncol = 4))
-colnames(results) = c("P1 Strat", "P2 Strat", "Winner", "Turns")
+results = as.data.frame(matrix(NA, nrow = 66000, ncol = 5))
+colnames(results) = c("P1 Strat", "P2 Strat", "Winner", "Turns", "WinnerWentFirst")
 
 Total_Strategies = list(color_number_wild, color_wild_number, number_color_wild, number_wild_color, wild_color_number, wild_number_color)
 Strategy_names = list("color_number_wild", "color_wild_number", "number_color_wild", "number_wild_color", "wild_color_number", "wild_number_color")
-counter = 1
+counter = 0
+
+#TODO remove
+tot_turns1 = 0
 
 for(i in 1:5){
   for(j in (i+1):6){
     for(k in 1:100){
+      counter = counter + 1
       winner_ij = simulateGame(list(Total_Strategies[[i]], Total_Strategies[[j]]), list(Strategy_names[[i]], Strategy_names[[j]])) 
-      results[counter,] = c(Strategy_names[[i]], Strategy_names[[j]], winner_ij)
+      results[counter,] = c(Strategy_names[[i]], Strategy_names[[j]], winner_ij, (Strategy_names[[i]] == winner_ij[[1]]))
       counter = counter + 1
       winner_ji = simulateGame(list(Total_Strategies[[j]], Total_Strategies[[i]]), list(Strategy_names[[j]], Strategy_names[[i]]))
-      results[counter,] = c(Strategy_names[[j]], Strategy_names[[i]], winner_ji)
-      counter = counter + 1
+      results[counter,] = c(Strategy_names[[j]], Strategy_names[[i]], winner_ji, (Strategy_names[[j]] == winner_ji[[1]]))
+      
+      #TODO remove
+      tot_turns1 = tot_turns1 + winner_ij[[2]] + winner_ji[[2]]
     }
   }
 }
 
 # for(i in 1:6){
 #   for(j in 1:1000){
-#     winner = simulateGame(Total_Strategies[[i]], Total_Strategies[[i]])
-#     results[counter,] = c(Total_Strategies[[i]], Total_Strategies[[i]], winner)
 #     counter = counter + 1
+#     winner = simulateGame(Total_Strategies[[i]], Total_Strategies[[i]])
+#     results[counter,] = c(Total_Strategies[[i]], Strategy_names[[i]], winner)
 #   }
-# }
+#}
